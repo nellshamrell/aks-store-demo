@@ -120,6 +120,25 @@ jobs:
             --file "$RADIUS_TARGET_KUBECONFIG"
           KUBECONFIG="$RADIUS_TARGET_KUBECONFIG" kubelogin convert-kubeconfig -l azurecli
 
+          # Radius mounts this kubeconfig into control-plane pods that do not
+          # contain kubelogin. Materialize the OIDC-backed Azure CLI token so
+          # in-pod Kubernetes clients can authenticate without an exec plugin.
+          AKS_USER=$(KUBECONFIG="$RADIUS_TARGET_KUBECONFIG" kubectl config view --minify -o jsonpath='{.contexts[0].context.user}')
+          AKS_TOKEN=$(kubelogin get-token \
+            -l azurecli \
+            --server-id 6dae42f8-4368-4678-94ff-3960e28e3630 \
+            --tenant-id "${{ vars.AZURE_TENANT_ID }}" |
+            jq -r '.status.token')
+          if [ -z "$AKS_TOKEN" ] || [ "$AKS_TOKEN" = "null" ]; then
+            echo "::error::kubelogin did not return an AKS token."
+            exit 1
+          fi
+          kubectl --kubeconfig "$RADIUS_TARGET_KUBECONFIG" config view --raw -o json |
+            jq --arg user "$AKS_USER" --arg token "$AKS_TOKEN" \
+              '(.users[] | select(.name == $user).user) = {token: $token}' \
+              > "$RADIUS_TARGET_KUBECONFIG.tmp"
+          mv "$RADIUS_TARGET_KUBECONFIG.tmp" "$RADIUS_TARGET_KUBECONFIG"
+
       - name: Set up control plane
         uses: radius-project/ai-extensions/.github/extension/actions/setup-control-plane@b3047e648bd839ef1232c3340369c94414ea078b
 
