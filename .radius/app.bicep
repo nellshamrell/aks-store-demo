@@ -3,10 +3,10 @@ extension radius
 param environment string
 
 @secure()
-param rabbitPassword string
+param rabbitPassword string = newGuid()
 
 @secure()
-param rabbitUsername string
+param rabbitUsername string = newGuid()
 
 @secure()
 param registryPassword string

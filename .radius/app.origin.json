@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-03T20:08:26.470Z",
-  "sourceCommit": "3f93ad153fbb2b2001e07a71f97d0d897f290a62",
+  "generatedAt": "2026-09-03T20:56:55.156Z",
+  "sourceCommit": "bb08e7d4076ae491a7e513c4f15d853508a07586",
   "skillVersion": "0.1.0",
-  "appBicepHash": "sha256:0d1ef214b8770e85a0c8725c10b109f5993901b54efdd20c3611cf69058d2912"
+  "appBicepHash": "sha256:9a5114561a3ef367a4c73f2ca5011a1c02680a16e564c1ae587b49c3d25bc990"
 }
