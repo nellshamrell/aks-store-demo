@@ -102,12 +102,38 @@ jobs:
 
       - name: Connect to AKS cluster
         if: ${{ vars.AZURE_AKS_CLUSTER_NAME != '' }}
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_AKS_CLUSTER_NAME: ${{ vars.AZURE_AKS_CLUSTER_NAME }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
         run: |
           az aks get-credentials \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.AZURE_AKS_CLUSTER_NAME }}" \
-            --subscription "${{ vars.AZURE_SUBSCRIPTION_ID }}" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_AKS_CLUSTER_NAME" \
+            --subscription "$AZURE_SUBSCRIPTION_ID" \
             --file "$RADIUS_TARGET_KUBECONFIG"
+
+          AKS_USER=$(kubectl config view \
+            --raw \
+            --minify \
+            --kubeconfig "$RADIUS_TARGET_KUBECONFIG" \
+            -o jsonpath='{.contexts[0].context.user}')
+          AKS_TOKEN=$(az account get-access-token \
+            --resource '6dae42f8-4368-4678-94ff-3960e28e3630' \
+            --query accessToken \
+            --output tsv)
+
+          if [ -z "$AKS_USER" ] || [ -z "$AKS_TOKEN" ]; then
+            echo "Failed to create a bearer-token kubeconfig for AKS." >&2
+            exit 1
+          fi
+
+          kubectl config view --raw --kubeconfig "$RADIUS_TARGET_KUBECONFIG" -o json |
+            jq --arg user "$AKS_USER" --arg token "$AKS_TOKEN" \
+              '(.users[] | select(.name == $user).user) = {token: $token}' \
+              > "$RADIUS_TARGET_KUBECONFIG.tmp"
+          mv "$RADIUS_TARGET_KUBECONFIG.tmp" "$RADIUS_TARGET_KUBECONFIG"
+          kubectl --kubeconfig "$RADIUS_TARGET_KUBECONFIG" cluster-info
 
       - name: Set up control plane
         uses: radius-project/ai-extensions/.github/extension/actions/setup-control-plane@6075969883433c8bb98e8aa5145adf193d328077
